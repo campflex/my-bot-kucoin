@@ -76,7 +76,7 @@ def cancel_all_active_orders():
     for order_id in list(active_orders):
         try:
             order_status = query_order_status(trading_pair, order_id)
-            if order_status == "true":
+            if order_status == True:
                 cancel_order(trading_pair, order_id=order_id)
         except Exception as e:
             print(f"Failed to cancel order {order_id}: {e}")
@@ -95,7 +95,7 @@ def cancel_order(symbol, order_id=None):
         print(f"Cancelling order {order_id} for symbol {symbol}...")
         response = spot_client.sync_cancel_hf_order_by_order_id(
             symbol=symbol,
-            order_id=order_id
+            orderId=order_id
         )
         print(f"Order {order_id} for symbol {symbol} cancelled successfully.")
         return response
@@ -107,9 +107,8 @@ def query_order_status(symbol, order_id):
     Queries the status of an order and returns its status.
     """
     try:
-        response = spot_client.get_single_hf_order(symbol=symbol, order_id=order_id)
+        response = spot_client.get_single_hf_order(symbol=symbol, orderId=order_id)
         status = response.get('active', None)
-        print(f"Order {order_id} status: {status}")
         return status
     except Exception as e:
         print(f"Error querying order {order_id} status: {e}")
@@ -180,7 +179,7 @@ def trade_loop(trading_pair, quantity_min, quantity_max, interval, num_trades):
                 # If needed, handle any additional logic here for the situation where the buy order is skipped
                 # Check and log the status of the sell order and cancell it
                 sell_order_status = query_order_status(trading_pair, sell_order_id)
-                if sell_order_status == "false":
+                if sell_order_status == False:
                     print(f"Sell Order {sell_order_id} is FILLED.")
                     if sell_order_id in active_orders:
                         active_orders.remove(sell_order_id)  # Remove from tracking list after cancellation
@@ -195,19 +194,19 @@ def trade_loop(trading_pair, quantity_min, quantity_max, interval, num_trades):
 
         # Check and log the status of the sell order
         sell_order_status = query_order_status(trading_pair, sell_order_id)
-        if sell_order_status == "false":
+        if sell_order_status == False:
             print(f"Sell Order {sell_order_id} is FILLED.")
         else:
             cancel_order(trading_pair, order_id=sell_order_id)
-            print(f"Unfilled Sell Order {sell_order_id} cancelled.")
+            print(f"Sell Order {sell_order_id} cancelled.")
 
         # Check and log the status of the buy ordercle
         buy_order_status = query_order_status(trading_pair, buy_order_id)
-        if buy_order_status == "false":
+        if buy_order_status == False:
             print(f"Buy Order {buy_order_id} is FILLED.")
         else:
             cancel_order(trading_pair, order_id=buy_order_id)
-            print(f"Unfilled Buy Order {buy_order_id} cancelled.")
+            print(f"Buy Order {buy_order_id} cancelled.")
         active_orders.clear()
 
 def graceful_shutdown(signum, frame):
