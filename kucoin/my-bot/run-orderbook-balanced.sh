@@ -1,0 +1,1 @@
+python3 kucoin-bot-advanced-mt.py --num_trades 1000000 --price_range_depth $3 --q_min $1 --q_max $2 --interval 8
