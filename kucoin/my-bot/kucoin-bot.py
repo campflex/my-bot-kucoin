@@ -7,10 +7,10 @@ import signal
 
 from kucoin.client import Trade
 from kucoin.client import Market
-# Your API keys
-api_key = '6730ff6bf6b7900001147c8e'
-api_secret = '88faffd6-a817-4e21-8d97-ea5b8fe6ed9c'
-passphrase = 'Mm@trading!2024'
+# Your Sub account API keys
+api_key = '67444c37c35dcd000134bcb0'
+api_secret = 'ab3ce0ba-d61b-4ac1-b9d3-b2625bbdd5c1'
+passphrase = 'MioSub2024@!'
 
 # Initialize the Kucoin spot hf trading client for HTTP requests
 try:
@@ -59,7 +59,7 @@ def place_order(trading_pair, side, price, random_quantity):
             price=price_str,
             # Add additional parameters as needed
         )
-        print (f"Raw response {response}")
+        #print (f"Raw response {response}")
         # Assuming the response structure includes an order ID directly or within a nested structure
         order_id = response.get('orderId')  # Adjust based on the actual response structure
         if order_id:
@@ -109,6 +109,7 @@ def query_order_status(symbol, order_id):
     try:
         response = spot_client.get_single_hf_order(symbol=symbol, orderId=order_id)
         status = response.get('active', None)
+        #print(f"Order stauus of {order_id} is: {status}")
         return status
     except Exception as e:
         print(f"Error querying order {order_id} status: {e}")
@@ -183,9 +184,14 @@ def trade_loop(trading_pair, quantity_min, quantity_max, interval, num_trades):
                     print(f"Sell Order {sell_order_id} is FILLED.")
                     if sell_order_id in active_orders:
                         active_orders.remove(sell_order_id)  # Remove from tracking list after cancellation
-                else:
+                elif sell_order_status == True:
                     cancel_order(trading_pair, order_id=sell_order_id)
-                    print(f"Sell Order {sell_order_id} cancelled.")
+                    if sell_order_id in active_orders:
+                        active_orders.remove(sell_order_id)  # Remove from tracking list after cancellation
+                else:
+                    print(f"Sell Order {sell_order_id} is FILLED.")
+                    if sell_order_id in active_orders:
+                        active_orders.remove(sell_order_id)  # Remove from tracking list after cancellation
                 continue
 
         # Sleep for the interval minus a small buffer to check order statuses just before the interval ends
@@ -196,17 +202,31 @@ def trade_loop(trading_pair, quantity_min, quantity_max, interval, num_trades):
         sell_order_status = query_order_status(trading_pair, sell_order_id)
         if sell_order_status == False:
             print(f"Sell Order {sell_order_id} is FILLED.")
-        else:
+            if sell_order_id in active_orders:
+                active_orders.remove(sell_order_id)  # Remove from tracking list after cancellation
+        elif sell_order_status == True:
             cancel_order(trading_pair, order_id=sell_order_id)
-            print(f"Sell Order {sell_order_id} cancelled.")
+            if sell_order_id in active_orders:
+                active_orders.remove(sell_order_id)  # Remove from tracking list after cancellation
+        else:
+            print(f"Sell Order {sell_order_id} is FILLED.")
+            if sell_order_id in active_orders:
+                active_orders.remove(sell_order_id)  # Remove from tracking list after cancellation
 
         # Check and log the status of the buy ordercle
         buy_order_status = query_order_status(trading_pair, buy_order_id)
         if buy_order_status == False:
             print(f"Buy Order {buy_order_id} is FILLED.")
-        else:
+            if buy_order_id in active_orders:
+                active_orders.remove(buy_order_id)  # Remove from tracking list after cancellation
+        elif buy_order_status == True:
             cancel_order(trading_pair, order_id=buy_order_id)
-            print(f"Buy Order {buy_order_id} cancelled.")
+            if buy_order_id in active_orders:
+                active_orders.remove(buy_order_id)  # Remove from tracking list after cancellation
+        else:
+            print(f"Buy Order {buy_order_id} is FILLED.")
+            if buy_order_id in active_orders:
+                active_orders.remove(buy_order_id)  # Remove from tracking list after cancellation
         active_orders.clear()
 
 def graceful_shutdown(signum, frame):

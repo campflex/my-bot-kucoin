@@ -270,6 +270,8 @@ class TradeThread(threading.Thread):
                 if sell_order_status == True:
                     cancel_order(self.trading_pair, order_id=sell_order_id)
                     print(f"\033[90m{current_time} Thread {self.n} Cycle {i + 1}/{self.num_trades}) - SELL order: {sell_order_id} cancelled\033[0m")
+                elif sell_order_status == False:
+                    print(f"\033[95m{current_time} Thread {self.n} Cycle {i + 1}/{self.num_trades}) - SELL order: {sell_order_id} was FILLED\033[9m")
                 else:
                     print(f"\033[95m{current_time} Thread {self.n} Cycle {i + 1}/{self.num_trades}) - SELL order: {sell_order_id} was FILLED\033[9m")
                 
@@ -278,6 +280,8 @@ class TradeThread(threading.Thread):
                 if buy_order_status == True:
                     cancel_order(self.trading_pair, order_id=buy_order_id)
                     print(f"\033[90m{current_time} Thread {self.n} Cycle {i + 1}/{self.num_trades}) - BUY order: {buy_order_id} cancelled\033[0m")
+                elif buy_order_status == False:
+                    print(f"\033[95m{current_time} Thread {self.n} Cycle {i + 1}/{self.num_trades}) - BUY order: {buy_order_id} was FILLED\033[0m")
                 else:
                     print(f"\033[95m{current_time} Thread {self.n} Cycle {i + 1}/{self.num_trades}) - BUY order: {buy_order_id} was FILLED\033[0m")
 
@@ -327,8 +331,10 @@ def graceful_shutdown(signum, frame):
         if order_status == True:
             cancel_order(trading_pair, order_id=order_id)
             print(f"\033[90m{current_time} Order: {order_id} cancelled\033[0m")
+        elif order_status == False:
+             print(f"\033[95m{current_time} order: {order_id} was FILLED\033[0m")           
         else:
-            print(f"\033[95m{current_time} order: {order_id} was {order_status}\033[0m")
+            print(f"\033[95m{current_time} order: {order_id} was FILLED\033[0m")
     
     print("All active orders cancelled and threads stopped. Exiting.")
     sys.exit(0)
