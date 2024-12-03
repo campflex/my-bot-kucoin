@@ -1,1 +1,1 @@
-python3 kucoin-bot.py --ask_spread_percent 0  --bid_spread_percent 0 --buy_above_market_price --num_trades 100000000 --q_min $1 --q_max $2 --interval 9
+python3 kucoin-bot-volume.py --num_trades 100000000 --q_min $1 --q_max $2 --interval 6 --avoid_sell_on_bid_order_match --avoid_buy_on_ask_order_match
