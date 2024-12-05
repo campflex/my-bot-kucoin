@@ -30,6 +30,13 @@ except Exception as e:
     print(f"Failed to initialize spot client: {e}")
     sys.exit(1)  # Exit if client initialization fails
 
+# Price velocity storage
+velocity_check_interval = 1  # Seconds between price checks
+velocity_threshold = 0.001  # Price velocity threshold (0.1%)
+
+# Market depth imbalance threshold
+imbalance_threshold = 0.7  # If imbalance exceeds this value, skip the cycle
+
 # Console management
 console_lock = threading.Lock()  # Lock to synchronize console output
 
@@ -204,6 +211,102 @@ def calculate_pnl():
     except Exception as e:
         print(f"Error calculating PNL: {e}")
 
+def get_order_book(trading_pair, pieces=20):
+    """
+    Retrieves the order book for the given trading pair.
+    :param trading_pair: The trading pair (e.g., 'BTC-USDT').
+    :param depth: The number of levels to fetch from the order book.
+    :return: A tuple of (bids, asks), where each is a list of [price, size].
+    """
+    try:
+        order_book = market_client.get_part_order(pieces=pieces, symbol=trading_pair)
+        bids = order_book.get('bids', [])
+        asks = order_book.get('asks', [])
+        return bids, asks
+    except Exception as e:
+        print(f"Error retrieving order book for {trading_pair}: {e}")
+        return [], []
+
+def check_price_velocity(trading_pair):
+        """
+        Measures the price velocity by calculating the rate of change over the `velocity_check_interval`.
+        :return: Price velocity (rate of change) or None if error occurs.
+        """
+        try:
+            # Initial price
+            initial_price = float(get_current_price(trading_pair))
+            time.sleep(velocity_check_interval)  # Wait for the defined interval
+            # Price after the interval
+            final_price = float(get_current_price(trading_pair))
+
+            # Calculate velocity (percentage change per second)
+            velocity = abs((final_price - initial_price) / initial_price) / velocity_check_interval
+            if velocity > velocity_threshold:
+                print(f"\033[93mPrice velocity {velocity:.6f} exceeds threshold {velocity_threshold}. Skipping trade cycle.\033[0m")
+                return False
+            print(f"Price velocity for {trading_pair}: {velocity:.6f} per second.")
+            return True
+        except Exception as e:
+            print(f"Error calculating price velocity: {e}")
+            return False
+
+def check_market_depth(trading_pair):
+    """
+    Checks the market depth for imbalance and returns True if safe to trade.
+    """
+    bids, asks = get_order_book(trading_pair)
+
+    if not bids or not asks:
+        print("\033[91mMarket depth not available. Skipping trade cycle.\033[0m")
+        return False
+
+    total_bid_volume = sum(float(bid[1]) for bid in bids)
+    total_ask_volume = sum(float(ask[1]) for ask in asks)
+
+    if total_bid_volume + total_ask_volume == 0:
+        return True  # No imbalance when no orders are present
+
+    imbalance_ratio = abs(total_bid_volume - total_ask_volume) / (total_bid_volume + total_ask_volume)
+    if imbalance_ratio > imbalance_threshold:
+        print(f"\033[93mMarket depth imbalance {imbalance_ratio * 100:.2f}% exceeds threshold {imbalance_threshold * 100:.2f}%. Skipping trade cycle.\033[0m")
+        return False
+    with console_lock:
+        print(f"\033[36mMarket depth imbalance {imbalance_ratio * 100:.2f}%")
+    return True
+
+def control_order_price(trading_pair, chosen_price):
+    """
+    Determines the price at which to place both buy and sell orders based on the current order book.
+    :param trading_pair: The trading pair (e.g., 'BTC-USDT').
+    :param current_price: The current market price.
+    :return: A single price to use for both buy and sell orders, or None if no valid price can be determined.
+    """
+    bids, asks = get_order_book(trading_pair)
+
+    if not asks or not bids:
+        print("Order book is empty or could not be retrieved.")
+        return None
+
+    # Closest sell price (ask)
+    closest_ask_price = float(asks[0][0])
+    # Closest buy price (bid)
+    closest_bid_price = float(bids[0][0])
+
+    # Check if there's enough gap to place orders
+    if closest_ask_price - closest_bid_price <= 0:
+        print("No valid gap between closest bid and ask prices.")
+        return None
+
+    # Conditions for avoiding matches on closest bid and ask prices
+    if chosen_price == closest_bid_price:
+        print("Avoiding sell order as chosen price matches the closest bid price!")
+        return None
+
+    if chosen_price == closest_ask_price:
+        print("Avoiding buy order as chosen price matches the closest ask price!")
+        return None
+
+    return chosen_price
 
 class TradeThread(threading.Thread):
     """
@@ -233,16 +336,26 @@ class TradeThread(threading.Thread):
                 return
 
             current_price = float(current_price)
-            random_quantity_sell = int(random.uniform(self.quantity_min, self.quantity_max))
-            random_quantity_buy = int(random.uniform(self.quantity_min, self.quantity_max))
+
+            if check_price_velocity(self.trading_pair) is None:
+                continue           
+
+            if not check_market_depth(self.trading_pair):
+                continue
 
             # Adjust pricing
-            if self.n == 0:
-                adjusted_sell_price = round(current_price + (self.spacing / 2), 6)
-                adjusted_buy_price = round(current_price - (self.spacing / 2), 6)
-            else:
+            if self.n == 0: # first order 
+                adjusted_sell_price = control_order_price(self.trading_pair, round(current_price + (self.spacing / 2), 6))
+                adjusted_buy_price = control_order_price(self.trading_pair, round(current_price - (self.spacing / 2), 6))
+                if adjusted_sell_price is None or adjusted_buy_price is None:
+                    print(f"Failed to set a safe starting price. Skipping.")
+                    return
+            else: # subsequent orders
                 adjusted_sell_price = round(current_price + (self.n * self.spacing), 6)
                 adjusted_buy_price = round(current_price - (self.n * self.spacing), 6)
+
+            random_quantity_sell = int(random.uniform(self.quantity_min, self.quantity_max))
+            random_quantity_buy = int(random.uniform(self.quantity_min, self.quantity_max))
 
             # Place buy and sell orders
             sell_order_id = place_order(self.trading_pair, 'sell', adjusted_sell_price, random_quantity_sell)
