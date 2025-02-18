@@ -10,13 +10,14 @@ from kucoin.client import Market
 from kucoin.client import User
 
 # Your Sub account API keys
-api_key = '67444c37c35dcd000134bcb0'
-api_secret = 'ab3ce0ba-d61b-4ac1-b9d3-b2625bbdd5c1'
-passphrase = 'MioSub2024@!'
+api_key = '67a03df8af72b1000151b977'
+api_secret = '7cacb717-31ba-4a57-88d8-d3f41ea2a500'
+passphrase = 'superMIND'
+
 #Your Master account API Keys
 # Your API keys
-m_api_key = '6730ff6bf6b7900001147c8e'
-m_api_secret = '88faffd6-a817-4e21-8d97-ea5b8fe6ed9c'
+m_api_key = '67af15d0ee2685000156a001'
+m_api_secret = '2c8a58c7-060a-4cfc-84cb-3b4345073fc9'
 m_passphrase = 'Mm@trading!2024'
 
 # Store initial prices and quantities
