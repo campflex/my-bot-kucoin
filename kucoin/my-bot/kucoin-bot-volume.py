@@ -143,7 +143,7 @@ def get_order_book(trading_pair, pieces=20):
         print(f"Error retrieving order book for {trading_pair}: {e}")
         return [], []
 
-def calculate_order_price(trading_pair, current_price, avoid_sell_on_bid_order_match, avoid_buy_on_ask_order_match):
+def calculate_order_price(trading_pair, current_price, avoid_sell_on_bid_order_match, avoid_buy_on_ask_order_match, allow_below_current_price):
     """
     Determines the price at which to place both buy and sell orders based on the current order book.
     :param trading_pair: The trading pair (e.g., 'BTC-USDT').
@@ -163,14 +163,16 @@ def calculate_order_price(trading_pair, current_price, avoid_sell_on_bid_order_m
     # Closest buy price (bid)
     closest_bid_price = float(bids[0][0])
 
+    lower_bound_price = max(closest_bid_price, current_price - allow_below_current_price)
+
     # Check if there's enough gap to place orders
-    if closest_ask_price - closest_bid_price <= 0:
-        print("No valid gap between closest bid and ask prices.")
+    if closest_ask_price - lower_bound_price <= 0:
+        print("No valid gap between adjusted lower bound and closest ask price.")
         return None
 
     # Randomly select a single price within the gap
-    chosen_price = round(random.uniform(closest_bid_price, closest_ask_price), 6)
-    print(f"\033[93mChosen price is {chosen_price} in between closest bid price {closest_bid_price} and closest ask price {closest_ask_price}\033[0m")
+    chosen_price = round(random.uniform(lower_bound_price, closest_ask_price), 6)
+    print(f"\033[93mChosen price is {chosen_price} between adjusted lower bound {lower_bound_price} and closest ask {closest_ask_price}\033[0m")
 
     # Conditions for avoiding matches on closest bid and ask prices
     if avoid_sell_on_bid_order_match and chosen_price == closest_bid_price:
@@ -216,7 +218,7 @@ def get_account_information():
     except Exception as e:
         print(f"Error retrieving account information: {e}")
 
-def trade_loop(trading_pair, quantity_min, quantity_max, interval, num_trades, avoid_sell_on_bid_order_match, avoid_buy_on_ask_order_match):
+def trade_loop(trading_pair, quantity_min, quantity_max, interval, num_trades, avoid_sell_on_bid_order_match, avoid_buy_on_ask_order_match, allow_below_current_price):
     """
     Main trading loop. Places sell and buy orders at the same price, checks for their fulfillment, and cancels if not filled.
     """
@@ -236,7 +238,7 @@ def trade_loop(trading_pair, quantity_min, quantity_max, interval, num_trades, a
         current_price = float(current_price)
         print(f"Current price for {trading_pair} is {current_price}")
         # Calculate a single price for both buy and sell orders
-        chosen_price = calculate_order_price(trading_pair, current_price, avoid_sell_on_bid_order_match, avoid_buy_on_ask_order_match)
+        chosen_price = calculate_order_price(trading_pair, current_price, avoid_sell_on_bid_order_match, avoid_buy_on_ask_order_match, allow_below_current_price)
         if chosen_price is None:
             print("\033[91mSkipping trade cycle due to unmeet price condition.\033[0m")
             continue
@@ -307,6 +309,8 @@ parser.add_argument('--avoid_sell_on_bid_order_match', action='store_true', defa
                     help='Avoid placing sell orders if chosen price matches the closest bid price.')
 parser.add_argument('--avoid_buy_on_ask_order_match', action='store_true', default=False,
                     help='Avoid placing buy orders if chosen price matches the closest ask price.')
+parser.add_argument('--allow_below_current_price', type=float, required=False, default=0.000001,
+                    help='Maximum allowed difference below current price for placing random orders.')
 
 # Parse arguments
 args = parser.parse_args()
@@ -318,7 +322,7 @@ interval = args.interval  # Seconds between orders
 num_trades = args.num_trades  # Set based on the argument
 avoid_sell_on_bid_order_match = args.avoid_sell_on_bid_order_match  # Set based on the argument
 avoid_buy_on_ask_order_match = args.avoid_buy_on_ask_order_match  # Set based on the argument
-
+allow_below_current_price = args.allow_below_current_price
 
 print("Starting trading script...")
-trade_loop(trading_pair, quantity_min, quantity_max, interval, num_trades, avoid_sell_on_bid_order_match, avoid_buy_on_ask_order_match)
+trade_loop(trading_pair, quantity_min, quantity_max, interval, num_trades, avoid_sell_on_bid_order_match, avoid_buy_on_ask_order_match, allow_below_current_price)
