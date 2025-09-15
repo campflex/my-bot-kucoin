@@ -8,9 +8,9 @@ import signal
 from kucoin.client import Trade
 from kucoin.client import Market
 # Your Sub account API keys
-api_key = '67444c37c35dcd000134bcb0'
-api_secret = 'ab3ce0ba-d61b-4ac1-b9d3-b2625bbdd5c1'
-passphrase = 'MioSub2024@!'
+api_key = '682309c7c1dfd90001056247'
+api_secret = '68748ee9-ad00-4f9e-bd5e-5fd7f8316b3c'
+passphrase = '13May2025'
 
 # Initialize the Kucoin spot hf trading client for HTTP requests
 try:

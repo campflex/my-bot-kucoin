@@ -81,6 +81,7 @@ class UserData(KucoinBaseRestApi):
             'currency': currency
         }
         return self._request('POST', '/api/v1/accounts', params=params)
+        
 
     def get_account_list(self, currency=None, account_type=None):
         """

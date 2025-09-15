@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+/projects/my-bot-kucoin/kucoin/bin/python3 kucoin-bot-volume-ml.py --num_trades 100000000 --q_min $1 --q_max $2 --interval 1 --allow_below_current_price $3 --avoid_sell_on_bid_order_match --avoid_buy_on_ask_order_match

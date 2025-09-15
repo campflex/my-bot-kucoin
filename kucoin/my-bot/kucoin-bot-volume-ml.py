@@ -10,15 +10,15 @@ from kucoin.client import Market
 from kucoin.client import User
 
 # Your Sub account API keys
-api_key = '6822e571c1dfd900010561a7'
-api_secret = 'e8026aab-8dbe-4f78-919a-0277f70b178c'
-passphrase = 'Mm@trading!2025'
+api_key = '682309c7c1dfd90001056247'
+api_secret = '68748ee9-ad00-4f9e-bd5e-5fd7f8316b3c'
+passphrase = '13May2025'
 
 #Your Master account API Keys
 # Your API keys
-m_api_key = '6822e49f4985e300012f7a90'
-m_api_secret = '777796d7-cbbf-4b15-8f0e-077930165f63'
-m_passphrase = 'Mm@trading!2025'
+m_api_key = '682309c7c1dfd90001056247'
+m_api_secret = '68748ee9-ad00-4f9e-bd5e-5fd7f8316b3c'
+m_passphrase = '13May2025'
 
 # Store initial prices and quantities
 initial_prices = {}
@@ -181,7 +181,7 @@ def calculate_order_price(trading_pair, current_price, avoid_sell_on_bid_order_m
 
     # Randomly select a single price within the gap
     chosen_price = round(random.uniform(lower_bound_price, closest_ask_price), 6)
-    print(f"\033[93mChosen price is {chosen_price} between adjusted lower bound {lower_bound_price} and closest ask {closest_ask_price}\033[0m")
+    print(f"\033[95mChosen price is {chosen_price} between adjusted lower bound {lower_bound_price} and closest ask {closest_ask_price}\033[0m")
 
     # Conditions for avoiding matches on closest bid and ask prices
     if avoid_sell_on_bid_order_match and chosen_price == closest_bid_price:
@@ -193,6 +193,35 @@ def calculate_order_price(trading_pair, current_price, avoid_sell_on_bid_order_m
         return None
 
     return chosen_price
+
+def get_main_account_information():
+    """
+    Retrieves trade account balances from the KuCoin main account and prints asset balances (free and locked).
+    Matches the display format of the sub-account balance reporting.
+    """
+    try:
+        account_info = user_client.get_account_list(account_type='trade')
+        print("\033[92mMain Account Report:\033[0m")
+        print("\033[92mAsset, Free, Locked\033[0m")
+
+        for balance in account_info:
+            asset = balance['currency']
+            free = float(balance['available'])
+            locked = float(balance['holds'])
+
+            # Store initial quantities and prices if not already done
+            if asset not in initial_balances:
+                initial_balances[asset] = free + locked  # Initial quantity
+
+                if asset == "USDT":
+                    initial_prices[asset] = 1.0
+                else:
+                    # Assume the asset is traded against USDT
+                    initial_prices[asset] = float(get_current_price(f"{asset}-USDT") or 0)
+
+            print(f"\033[92m{asset}, {free}, {locked}\033[0m")
+    except Exception as e:
+        print(f"Error retrieving main account information: {e}")
 
 def get_account_information():
     """
@@ -243,6 +272,7 @@ def trade_loop(trading_pair, quantity_min, quantity_max, interval, num_trades, a
         current_price = get_current_price(trading_pair)
         if current_price is None:
             print("Failed to retrieve current price. Skipping this cycle.")
+            time.sleep(1)
             continue
         current_price = float(current_price)
         print(f"Current price for {trading_pair} is {current_price}")
@@ -250,11 +280,13 @@ def trade_loop(trading_pair, quantity_min, quantity_max, interval, num_trades, a
         chosen_price = calculate_order_price(trading_pair, current_price, avoid_sell_on_bid_order_match, avoid_buy_on_ask_order_match, allow_below_current_price)
         if chosen_price is None:
             print("\033[91mSkipping trade cycle due to unmeet price condition.\033[0m")
+            time.sleep(1)
             continue
  
         # Check if the chosen price is the same as the previous one
         if chosen_price == previous_chosen_price:
             print(f"\033[91mChosen price {chosen_price} is the same as the previous cycle. Skipping this trade cycle.\033[0m")
+            time.sleep(1)
             continue
 
         # Update the previous chosen price
@@ -294,7 +326,10 @@ def trade_loop(trading_pair, quantity_min, quantity_max, interval, num_trades, a
             if buy_order_id in active_orders:
                 active_orders.remove(buy_order_id)  # Remove from tracking list after cancellation
         active_orders.clear()
-        get_account_information()
+        if args.use_subaccount:
+            get_account_information()
+        else:
+            get_main_account_information()
 
 def graceful_shutdown(signum, frame):
     print("Received SIGINT. Cancelling all active orders and shutting down.")
@@ -314,6 +349,8 @@ parser.add_argument('--q_max', type=int, required=True,
                     help='Maximum quantity for each trade.')
 parser.add_argument('--interval', type=int, required=True,
                     help='Number of seconds betweeb orders.')
+parser.add_argument('--use_subaccount', action='store_true', default=False,
+                    help='Use subaccount for balance queries instead of main account (default: False).')
 parser.add_argument('--avoid_sell_on_bid_order_match', action='store_true', default=False,
                     help='Avoid placing sell orders if chosen price matches the closest bid price.')
 parser.add_argument('--avoid_buy_on_ask_order_match', action='store_true', default=False,
